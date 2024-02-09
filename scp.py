@@ -1,6 +1,6 @@
 import struct
 
-from fluximage import CHS, FluxImage, FluxImageBlock
+from fluximage import CHS, FluxImage, FluxImageBlock, FluxImageDummyBlock
 
 class SCPBlock(FluxImageBlock):
 
@@ -72,28 +72,29 @@ class SCP(FluxImage):
         head_cfg = self.read_s8()
         main_head = (0, 0, 1)[head_cfg]
         heads = (2, 1, 1)[head_cfg]
-        self.frequency = 40e6/(self.read_u8()+1) 
+        self.frequency = 40e6/(self.read_u8()+1)
         checksum = self.read_u32_le()
 
         if self.debug:
             print('freq %f, %i head(s), track %i -> %i, %i revolutions' % (self.frequency, heads, starttrack, endtrack, revolutions))
 
         track_ptrs = []
+        if heads == 1 and main_head == 1:
+            self.read_u32_le()
         for track in range(starttrack, endtrack+1):
             track_ptrs.append(self.read_u32_le())
             if heads == 1:
-                track_ptrs.append(self.read_u32_le())
+                self.read_u32_le()
 
         self.blocks = {}
-        i = 0
         for track in range(starttrack, endtrack+1):
             if debug:
                 print('Loading track ' + str(track))
-            while track_ptrs[i] == 0:
-                i += 1
-            fluximagefile.seek(track_ptrs[i])
-            block = SCPBlock(fluximagefile, self.frequency, main_head + track%heads, int(track/heads), revolutions, debug = self.debug)
+            if track_ptrs[track] != 0:
+                fluximagefile.seek(track_ptrs[track])
+                block = SCPBlock(fluximagefile, self.frequency, main_head + track%heads, int(track/heads), revolutions, debug = self.debug)
+            else:
+                block = FluxImageDummyBlock(self.frequency, main_head + track%heads, int(track/heads))
             if debug:
                 print('CHS ' + str(block.chs()))
             self.blocks[block.chs()] = block
-            i += 1
