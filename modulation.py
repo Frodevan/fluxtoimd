@@ -55,6 +55,7 @@ class FM(Modulation):
     id_field_length = 4
     crc_init = 0xffff
     crc_includes_address_mark = True
+    address_mark_length = 1
 
     id_to_data_half_bits = 400
 
@@ -92,6 +93,9 @@ class MFM(Modulation):
     id_field_length = 4
     crc_init = 0xffff
     crc_includes_address_mark = True
+    address_mark_length = 4
+
+    id_to_data_half_bits = 700
 
     # Would prefer to use a more general @staticmethod encode, but then can't call in
     # class initialization
@@ -99,14 +103,15 @@ class MFM(Modulation):
     def encode_mark(data1, missing_clock1, data2):
         prev_d = 0
         bits = ''
-        for i in range(7, -1, -1):
-            d = (data1  >> i) & 1
-            if (prev_d == 0) and (d == 0) and (i != (6 - missing_clock1)):
-                c = 1
-            else:
-                c = 0
-            bits += ('%d%d' % (c, d))
-            prev_d = d
+        for _ in range(address_mark_length-1):
+            for i in range(7, -1, -1):
+                d = (data1  >> i) & 1
+                if (prev_d == 0) and (d == 0) and (i != (6 - missing_clock1)):
+                    c = 1
+                else:
+                    c = 0
+                bits += ('%d%d' % (c, d))
+                prev_d = d
         for i in range(7, -1, -1):
             d = (data2  >> i) & 1
             if prev_d == 0 and d == 0:
@@ -149,6 +154,7 @@ class IntelM2FM(Modulation):
     id_field_length = 4
     crc_init = 0x0000
     crc_includes_address_mark = True
+    address_mark_length = 1
 
     id_to_data_half_bits = 600
 
@@ -199,6 +205,7 @@ class HPM2FM(Modulation):
     id_field_length = 2
     crc_init = 0xffff
     crc_includes_address_mark = False
+    address_mark_length = 1
 
     id_to_data_half_bits = 480
 
