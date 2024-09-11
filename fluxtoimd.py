@@ -19,6 +19,7 @@ import argparse
 import re
 from collections import OrderedDict
 
+from scp import SCP      # SuperCardPro image format
 from dfi import DFI      # DiscFerret image format
 from kfsf import KFSF    # KryoFlux stream format
 from adpll import ADPLL
@@ -167,7 +168,7 @@ parser.add_argument('flux_image', type=argparse.FileType('rb'))
 parser.add_argument('imagedisk_image', type=argparse.FileType('wb'))
 parser.add_argument('-C', '--comment', action = 'store')
 
-parser.add_argument('-F', '--flux_format', choices=['dfi', 'ksf'], default = 'dfi')
+parser.add_argument('-F', '--flux_format', choices=['dfi', 'ksf', 'scp'], default = 'dfi')
 
 parser_modulation = parser.add_mutually_exclusive_group(required = False)
 parser_modulation.add_argument('--fm',   action = 'store_const', const = FM,   dest = 'modulation', help = 'FM modulation, IBM 3740 single density')
@@ -190,6 +191,8 @@ if args.flux_format == 'dfi':
     flux_image = DFI(args.flux_image, frequency = args.frequency * 1.0e6)
 elif args.flux_format == 'ksf':
     flux_image = KFSF(args.flux_image)
+elif args.flux_format == 'scp':
+    flux_image = SCP(args.flux_image)
 
 if args.modulation == HPM2FM and args.index:
     print("index mark option ignored, as HP M2FM doesn't use index marks")
@@ -264,7 +267,7 @@ for track_num in range(args.tracks):
         if args.imagedisk_image is not None:
             for sector_num in range(first_sector, first_sector + sectors_per_track):
                 if sector_num not in track:
-                    print('*** BAD nodata: track %02d sector %02d\n' % (track_num, sector_num))
+                    print('*** BAD nodata: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
             for sector_num in track:
                 deleted = track[sector_num][0]
                 data = track[sector_num][1]
@@ -272,17 +275,20 @@ for track_num in range(args.tracks):
                 if data is not None:
                     #print('writing track %02d sector %02d\n' % (track_num, sector_num))
                     if bad:
-                        print('*** BAD: track %02d sector %02d\n' % (track_num, sector_num))
-                    imd.write_sector(args.modulation.imagedisk_mode,
-                                     track_num,  # cylinder
-                                     side_num,   # head
-                                     sector_num,
-                                     bytes(data),
-                                     deleted = deleted,
-                                     bad = bad)
+                        print('*** BAD: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
+                    try:
+                        imd.write_sector(args.modulation.imagedisk_mode,
+                                         track_num,  # cylinder
+                                         side_num,   # head
+                                         sector_num,
+                                         bytes(data),
+                                         deleted = deleted,
+                                         bad = bad)
+                    except ImageDisk.InvalidSectorSizeException as e:
+                        print('*** ERROR: %s. Could not write, skipping' % e)
                 else:
                     # If sector not found then no data written to file for sector
-                    print('*** BAD nodata: track %02d sector %02d\n' % (track_num, sector_num))
+                    print('*** BAD nodata: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
                     pass
 
 if args.imagedisk_image is not None:
