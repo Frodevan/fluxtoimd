@@ -53,6 +53,7 @@ class FM(Modulation):
     imagedisk_mode = 0x00
 
     id_field_length = 4
+    byte_length = 16
     crc_init = 0xffff
     crc_includes_address_mark = True
     address_mark_length = 1
@@ -91,6 +92,7 @@ class MFM(Modulation):
     imagedisk_mode = 0x03
 
     id_field_length = 4
+    byte_length = 16
     crc_init = 0xffff
     crc_includes_address_mark = True
     address_mark_length = 4
@@ -128,8 +130,10 @@ class MFM(Modulation):
     deleted_data_address_mark  = encode_mark(0xa1, 4, 0xf8)
 
     del encode_mark
-    
 
+class TandbergMFM(MFM):
+
+        modulation_00 = FM
 
 # An Intel-proprietary M2FM floppy format, used by the Intel SBC 202
 # floppy controller in Intel MDS 800, Series II, and Series III development
@@ -152,6 +156,7 @@ class IntelM2FM(Modulation):
                            # Intel M2FM
 
     id_field_length = 4
+    byte_length = 16
     crc_init = 0x0000
     crc_includes_address_mark = True
     address_mark_length = 1
@@ -203,6 +208,7 @@ class HPM2FM(Modulation):
                            # Intel M2FM
 
     id_field_length = 2
+    byte_length = 16
     crc_init = 0xffff
     crc_includes_address_mark = False
     address_mark_length = 1
@@ -225,6 +231,43 @@ class HPM2FM(Modulation):
     ecc_data_address_mark        = encode_mark(0xd0, clock = 0x0e)
 
     del encode_mark
+
+class MetropolisGCR(Modulation):
+
+    default_bit_rate_kbps = 333
+    default_first_sector = 0
+    default_sectors_per_track = 52
+    expected_sector_sizes = [128]
+    default_bytes_per_sector = 128
+    lsb_first = False
+    imagedisk_mode = 0x00
+
+    id_field_length = 4
+    byte_length = 10
+    crc_init = 0xffff
+    crc_includes_address_mark = True
+    address_mark_length = 1
+
+    id_to_data_half_bits = 310
+
+    id_address_mark            = '11111111110100101101' # 9D
+    data_address_mark          = '11111111110111010110' # E6
+
+    @classmethod
+    def decode(cls, channel_bits):
+        nibbles = []
+        bytes = []
+        patterns = ['11001','11011','10010','10011',
+                    '11101','10101','10110','10111',
+                    '11010','01001','01010','01011',
+                    '11110','01101','01110','01111']
+        for i in range(0, len(channel_bits)-4, 5):
+            data = channel_bits[i:i+5]
+            if data in patterns:
+                nibbles.append(patterns.index(data))
+        for i in range(0, len(nibbles)-1, 2):
+            bytes.append(nibbles[i+1] + (nibbles[i]<<4))
+        return bytes
 
 
 if __name__ == '__main__':

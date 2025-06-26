@@ -75,6 +75,10 @@ class SCP(FluxImage):
         self.frequency = 40e6/(self.read_u8()+1)
         checksum = self.read_u32_le()
 
+        if version == 0 and subversion == 0 and heads == 1:
+            starttrack = int(starttrack/2)
+            endtrack = int(endtrack/2)
+
         if self.debug:
             print('freq %f, %i head(s), track %i -> %i, %i revolutions' % (self.frequency, heads, starttrack, endtrack, revolutions))
 

@@ -209,6 +209,7 @@ if __name__ == '__main__':
     parser_modulation = parser.add_mutually_exclusive_group(required = False)
     parser_modulation.add_argument('--fm',   action = 'store_const', const = FM,   dest = 'modulation', help = 'FM modulation, IBM 3740 single density')
     parser_modulation.add_argument('--mfm',  action = 'store_const', const = MFM,  dest = 'modulation', help = 'MFM modulation, IBM System/34 double density')
+    parser_modulation.add_argument('--tandbergmfm',  action = 'store_const', const = TandbergMFM,  dest = 'modulation', help = 'MFM modulation, Tandberg double density')
     parser_modulation.add_argument('--m2fm', action = 'store_const', const = IntelM2FM, dest = 'modulation', help = 'M2FM modulation, Intel MDS, SBC 202 double density')
 
     parser.add_argument('-t', '--tracks',  type = int, default = 77, help = 'tracks per side')
@@ -232,6 +233,9 @@ if __name__ == '__main__':
     
     head = 0
     for track in range(args.tracks):
+        current_modulation = args.modulation
+        if track == 0 and hasattr(args.modulation, 'modulation_00'):
+            current_modulation = args.modulation.modulation_00
         for sector in range(1, sectors + 1):
-            imd.write_sector(args.modulation.imagedisk_mode, track, head, sector, bytes([args.data] * bytes_per_sector))
+            imd.write_sector(args.current_modulation.imagedisk_mode, track, head, sector, bytes([args.data] * bytes_per_sector))
     imd.write(args.image)
