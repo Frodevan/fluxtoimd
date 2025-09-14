@@ -83,6 +83,11 @@ def dump_track(modulation,
     #print(len(bits))
     #print(bits)
 
+    #for i in range(16):
+    #    print(i)
+    #    hex_dump(modulation.decode(bits[i:]))
+
+
     if require_index_mark and index_address_mark in modulation:
         index_address_mark_locs = [m.start() for m in re.finditer(modulation.index_address_mark, bits)]
         if not index_address_mark_locs:
@@ -266,6 +271,7 @@ first_sector_00 = modulation_00.default_first_sector
 sectors_per_track_00 = modulation_00.default_sectors_per_track
 
 #tracks = { }
+image_bin = bytes()
 for track_num in range(args.tracks):
     for side_num in range(args.sides):
         try:
@@ -274,7 +280,7 @@ for track_num in range(args.tracks):
             else:
                 track = dump_track(args.modulation, flux_image, track_num, side_num, require_index_mark = args.index)
         except Exception as e:
-            raise e
+            # raise e
             print('*** BAD no-data: Track %02d side %01d missing entirely' % (track_num, side_num))
             bad_sectors += sectors_per_track
             total_sectors += sectors_per_track
@@ -309,6 +315,8 @@ for track_num in range(args.tracks):
             for sector_num in range(first_sector, first_sector + sectors_per_track):
                 if sector_num not in track:
                     print('*** BAD nodata: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
+                elif track[sector_num][1] is not None:
+                    image_bin += bytes(track[sector_num][1])
             for sector_num in track:
                 deleted = track[sector_num][0]
                 data = track[sector_num][1]
@@ -342,7 +350,10 @@ for track_num in range(args.tracks):
                     pass
 
 if args.imagedisk_image is not None:
-    imd.write(args.imagedisk_image)
+    if args.imagedisk_image.name[-4:].lower() == '.imd':
+        imd.write(args.imagedisk_image)
+    else:
+        args.imagedisk_image.write(image_bin)
 
 print('%d data sectors, %d deleted data sectors, %d bad sectors, out of %d' % (data_sectors, deleted_sectors, bad_sectors, total_sectors))
 
