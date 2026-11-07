@@ -28,6 +28,12 @@ from modulation import *
 from imagedisk import ImageDisk
 
 
+tracks = []
+log_full_raw_dump = False
+log_full_dump = False
+debug_dump = False
+
+
 def hex_dump(b, prefix = ''):
     for i in range(0, len(b), 16):
         print(prefix + '%02x: ' % i, end='')
@@ -40,6 +46,8 @@ def hex_dump(b, prefix = ''):
             if (i + j) < len(b):
                 if 0x20 <= b[i+j] <= 0x7e:
                     print('%c' % b[i+j], end='')
+                elif 0x20 <= (b[i+j]&0x7f) <= 0x7e:
+                    print('%c' % (b[i+j]&0x7f), end='')
                 else:
                     print('.', end='')
         print()
@@ -50,7 +58,8 @@ def dump_track(modulation,
                track,
                side,  # 0 or 1
                sectors_per_track = None,
-               require_index_mark = False):
+               require_index_mark = False,
+               verbose = False):
 
     if track == 0 and side == 0:
         current_crc = crc_00
@@ -76,17 +85,18 @@ def dump_track(modulation,
                   freq_adj_factor = 0.005,
                   phase_adj_factor = 0.1)
 
-
     bits = ''
     for b in adpll:
         bits += '01'[b]
-    #print(len(bits))
-    #print(bits)
 
-    #for i in range(16):
-    #    print(i)
-    #    hex_dump(modulation.decode(bits[i:]))
+    if log_full_raw_dump:
+        print(len(bits))
+        print(bits)
 
+    if log_full_dump:
+        for i in range(16):
+            print(i)
+            hex_dump(modulation.decode(bits[i:]))
 
     if require_index_mark and index_address_mark in modulation:
         index_address_mark_locs = [m.start() for m in re.finditer(modulation.index_address_mark, bits)]
@@ -95,10 +105,12 @@ def dump_track(modulation,
             return sectors
 
     id_address_mark_locs = [m.start() for m in re.finditer(modulation.id_address_mark, bits)]
-    #print('id address marks at: ', id_address_mark_locs)
+    if debug_dump:
+        print('id address marks at: ', id_address_mark_locs)
 
     for id_pos in id_address_mark_locs:
-        #print('id address mark at channel bit %d' % id_pos)
+        if debug_dump:
+            print('id address mark at channel bit %d' % id_pos)
         id_field = modulation.decode(bits[id_pos: id_pos + len(modulation.id_address_mark) + modulation.byte_length * (modulation.id_field_length + 2)]) 
         current_crc.reset()
         if (modulation.crc_includes_address_mark):
@@ -146,8 +158,8 @@ def dump_track(modulation,
         deleted = False
         data_pos = bits.find(modulation.data_address_mark, id_pos + len(modulation.data_address_mark) + modulation.byte_length * (modulation.id_field_length + 2))
         if (modulation.id_to_data_half_bits - 50) <= (data_pos - id_pos) <= (modulation.id_to_data_half_bits + 50):
-            #print('  data address mark at channel bit offset %d' % (data_pos - id_pos))
-            pass
+            if debug_dump:
+                print('  data address mark at channel bit offset %d' % (data_pos - id_pos))
         elif hasattr(modulation, 'deleted_data_address_mark'):
             data_pos = bits.find(modulation.deleted_data_address_mark, id_pos + len(modulation.data_address_mark) + 96)
             if (modulation.id_to_data_half_bits - 50) <= (data_pos - id_pos) <= (modulation.id_to_data_half_bits + 50):
@@ -172,6 +184,8 @@ def dump_track(modulation,
             sectors [id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], False)
         else:
             print("*** bad data field CRC track %d side %d sector %d" % (track, side, id_sector))
+            if verbose:
+                hex_dump(data_field)
             # Only update sector if bad to prevent overwriting good with bad
             if sectors[id_sector][2]:
                 sectors [id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], True)
@@ -259,22 +273,23 @@ hbc_00 = 1/hbr_00             # half-bit cycle in s
 first_sector_00 = modulation_00.default_first_sector
 sectors_per_track_00 = modulation_00.default_sectors_per_track
 
-#tracks = { }
+if len(tracks) == 0:
+    tracks = range(args.tracks)
 image_bin = bytes()
-for track_num in range(args.tracks):
+for track_num in tracks:
     for side_num in range(args.sides):
         try:
             if track_num == 0 and side_num == 0:
-                track = dump_track(modulation_00, flux_image, track_num, side_num, require_index_mark = args.index)
+                track = dump_track(modulation_00, flux_image, track_num, side_num, require_index_mark = args.index, verbose = args.verbose)
             else:
-                track = dump_track(args.modulation, flux_image, track_num, side_num, require_index_mark = args.index)
+                track = dump_track(args.modulation, flux_image, track_num, side_num, require_index_mark = args.index, verbose = args.verbose)
         except Exception as e:
-            # raise e
+            if debug_dump:
+                raise e
             print('*** BAD no-data: Track %02d side %01d missing entirely' % (track_num, side_num))
             bad_sectors += sectors_per_track
             total_sectors += sectors_per_track
             continue
-        #tracks[(track_num, side_num)] = track
         if args.verbose:
             print('track %2d' % track_num, end='')
             if args.sides > 1:
@@ -303,7 +318,7 @@ for track_num in range(args.tracks):
         if args.imagedisk_image is not None:
             for sector_num in range(first_sector, first_sector + sectors_per_track):
                 if sector_num not in track:
-                    print('*** BAD nodata: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
+                    print('*** BAD nodata: head %01d track %02d sector %02d' % (side_num, track_num, sector_num))
                 elif track[sector_num][1] is not None:
                     image_bin += bytes(track[sector_num][1])
             for sector_num in track:
@@ -313,7 +328,7 @@ for track_num in range(args.tracks):
                 if data is not None:
                     #print('writing track %02d sector %02d\n' % (track_num, sector_num))
                     if bad:
-                        print('*** BAD: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
+                        print('*** BAD: head %01d track %02d sector %02d' % (side_num, track_num, sector_num))
                     try:
                         if track_num == 0 and side_num == 0:
                             imd.write_sector(modulation_00.imagedisk_mode,
@@ -335,7 +350,7 @@ for track_num in range(args.tracks):
                         print('*** ERROR: %s. Could not write, skipping' % e)
                 else:
                     # If sector not found then no data written to file for sector
-                    print('*** BAD nodata: head %01d track %02d sector %02d\n' % (side_num, track_num, sector_num))
+                    print('*** BAD nodata: head %01d track %02d sector %02d' % (side_num, track_num, sector_num))
                     pass
 
 if args.imagedisk_image is not None:
@@ -344,5 +359,5 @@ if args.imagedisk_image is not None:
     else:
         args.imagedisk_image.write(image_bin)
 
-print('%d data sectors, %d deleted data sectors, %d bad sectors, out of %d' % (data_sectors, deleted_sectors, bad_sectors, total_sectors))
+print('\n%d data sectors, %d deleted data sectors, %d bad sectors, out of %d' % (data_sectors, deleted_sectors, bad_sectors, total_sectors))
 
