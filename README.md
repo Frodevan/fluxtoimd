@@ -18,11 +18,16 @@ Copyright © 2016 Eric Smith <spacewar@gmail.com>
     along with this program.  If not, see
     <http://www.gnu.org/licenses/>.
 
-Currently fluxtoimd.py supports 8-inch floppy disks in the following
-formats:
+Currently fluxtoimd.py supports floppy disks in the following formats:
 
 * IBM 3740 FM single-density
   (industry-standard single density as used by most floppy controllers)
+
+* IBM System/34 MFM double-density
+  (industry standard double-density as used by most floppy controllers)
+
+* Alternate IBM System/34 MFM double-density with FM on the first track
+  (used by both Mycron and Tandberg Data)
 
 * Intel M2FM double-density 128 byte/sector format
   (used by SBC 202 floppy controller in Intel MDS 800/Series II/Series III
@@ -31,13 +36,15 @@ formats:
 * HP M2FM double-density 256 byte/sector format
   (used by HP 7902, 9885, 9895)
 
-There is untested code to support the following formats:
+* Metropolis GCR double-density, 128 bytes/sector, 310kbps format
+  (used by for instance GenRad RDOS-II)
 
-* IBM System/34 MFM double-density
-  (industry standard double-density as used by most floppy controllers)
+* Zilog hard-sectored MFM 136 bytes/sector format
+  (used on the Zilog MCZ-1)
 
-In principle the code should work with images of 5¼ inch and 3½ inch
-floppy disks, but that has not been tested.
+MFM format also works with most standard 5.25" and 3.5" floppy disks.
+Just remember that these typically use half the bit-rate of 8" media at the same density, so double-density is 250kbps and only the high-density formats are 500kbps.
+For most 8" floppy disk formats, in comparison, single-density is 250kbps and double-density is 500kbps.
 
 USAGE:
 
@@ -101,7 +108,7 @@ diskdef mds-sd
 end
 </pre>
 
-For cpmtools the .imd files need to be converted to raw .img file.
+For cpmtools the .imd files need to be converted to raw .img file, or alternaively just use the .img extension when specifying the output filename in the fluxtoimd arguments.
 Libdsk can convert
   ./libdsk-1.5.12/tools/dskconv -otype raw filename.imd filename.img
 And disk utilities
@@ -113,3 +120,26 @@ For directory
 To extract
   ./cpmcp -f mds-dd filename.img '0:*' output-directory
 
+
+DATA RECOVERY:
+
+There are some features for more advanced troubleshooting, for users familiar with the encoding scheme of floppy-disks, and these are activated by setting some flags within the fluxtoimd.py file itself.
+The goal of these is to dump more data to console, and let the user analyze the data on their own in order for them to do corrections to a previously extracted sector-image.
+When these features are active, the amount of printout will be quite a lot. It is as such a good idea to pipe the output to a textfile for later examination, rather than to try to follow along in realtime.
+To limit the amount of data to sift through, it is also possible to hardcode a list of track numbers to dump by using the "tracks" variable.
+
+Normally, ID fields without a matching data field will always be dumped to the console, regardless of debug mode.
+Data fields with incorrect checksum will be dumped only if the regular "verbosity" command-line argument is used.
+This option will also add more printouts, in particular general information about the data that would typically be redundant for the ordinary user.
+
+The "debug_dump" flag will print timing-information about address-mark placement. This can be of interest for non-standard formats, or to check if an expected data-field has been found anywhere near where it is expected.
+
+In the case of bad or malformed data, the "log_full_dump" flag can be of interest. This will log a decoded data dump of the per-track bitstream, at all of the 16 bitshift possibilities.
+This is very usefull if bits are missing, since in some cases good data will often continue with another bitshift-offset after the bad bits.
+When this type of analysis is done, it is recommended that the user is familiar with testing and validating the CRC of reconstructed data-fields,
+as well as knowing to what extent such reconstruction is possible based on the data that is available. Other things this data can be used for, is to identify copy-protection schemes.
+
+In the case the data does not decode right, either due to the wrong encoding and/or bitrate being selected, setting "log_full_raw_dump" will print the bitstream of each track as-is.
+Given the bitrate is right, the data-stream can be used to identify the encoding scheme, as well as the pattern of the address marks.
+Such data can also provide information about missing clock-bits of other scenarios (for instance in bad sectors), or weak bits (given the flux-image contains multiple rotations per track).
+The main intent of this data is however to make it easier to add support for new encoding-formats to fluxtoimg.
