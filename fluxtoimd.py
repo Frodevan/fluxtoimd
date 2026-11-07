@@ -227,14 +227,7 @@ if args.imagedisk_image is not None:
 if args.bit_rate is None:
     args.bit_rate = args.modulation.default_bit_rate_kbps
 
-crc_param = CRC.CRCParam(name = 'CRC-16-CCITT',
-                         order = 16,
-                         poly = 0x1021,
-                         init = args.modulation.crc_init,
-                         xorot = 0x0000,
-                         refin = args.modulation.lsb_first,
-                         refot = False)
-crc = CRC(crc_param)
+crc = CRC(args.modulation.crc_params)
 crc.make_table(8)
 bit_rate = args.bit_rate
 hbr = bit_rate * 2000   # half-bit rate in Hz
@@ -256,14 +249,7 @@ if hasattr(modulation_00, 'modulation_00'):
     modulation_00 = args.modulation.modulation_00
     bit_rate_00 = modulation_00.default_bit_rate_kbps
 
-crc_param_00 = CRC.CRCParam(name = 'CRC-16-CCITT',
-                            order = 16,
-                            poly = 0x1021,
-                            init = modulation_00.crc_init,
-                            xorot = 0x0000,
-                            refin = modulation_00.lsb_first,
-                            refot = False)
-crc_00 = CRC(crc_param_00)
+crc_00 = CRC(modulation_00.crc_params)
 crc_00.make_table(8)
 hbr_00 = bit_rate_00 * 2000   # half-bit rate in Hz
 hbc_00 = 1/hbr_00             # half-bit cycle in s

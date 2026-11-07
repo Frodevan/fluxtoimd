@@ -15,6 +15,7 @@
 #    along with this program.  If not, see
 #    <http://www.gnu.org/licenses/>.
 
+from crc import CRC
 
 class Modulation:
     # bits is a string of channel bits ('0' or '1'), which are nominally
@@ -54,7 +55,7 @@ class FM(Modulation):
 
     id_field_length = 4
     byte_length = 16
-    crc_init = 0xffff
+    crc_params = CRC.crc16_ccitt_false_param
     crc_includes_address_mark = True
     address_mark_length = 1
 
@@ -93,7 +94,7 @@ class MFM(Modulation):
 
     id_field_length = 4
     byte_length = 16
-    crc_init = 0xffff
+    crc_params = CRC.crc16_ccitt_false_param
     crc_includes_address_mark = True
     address_mark_length = 4
 
@@ -157,7 +158,7 @@ class IntelM2FM(Modulation):
 
     id_field_length = 4
     byte_length = 16
-    crc_init = 0x0000
+    crc_params = CRC.crc16_xmodem_param
     crc_includes_address_mark = True
     address_mark_length = 1
 
@@ -209,7 +210,7 @@ class HPM2FM(Modulation):
 
     id_field_length = 2
     byte_length = 16
-    crc_init = 0xffff
+    crc_params = CRC.crc16_ccitt_false_lsb_param
     crc_includes_address_mark = False
     address_mark_length = 1
 
@@ -244,7 +245,7 @@ class MetropolisGCR(Modulation):
 
     id_field_length = 4
     byte_length = 10
-    crc_init = 0xffff
+    crc_params = CRC.crc16_ccitt_false_param
     crc_includes_address_mark = True
     address_mark_length = 1
 

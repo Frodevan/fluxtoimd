@@ -38,13 +38,53 @@ class CRC:
                            'refin',    # reflect input data
                            'refot'])   # reflect output word
     
-    crc16_ccitt_param = CRCParam(name = 'CRC-16-CCITT',
+    crc16_param = CRCParam(name = 'CRC-16',
+                           order = 16,
+                           poly = 0x8005,
+                           init = 0x0000,
+                           xorot = 0x0000,
+                           refin = True,
+                           refot = True)
+
+    crc16_bypass_param = CRCParam(name = 'CRC-16/BYPASS',
+                                  order = 16,
+                                  poly = 0x8005,
+                                  init = 0x0000,
+                                  xorot = 0x0000,
+                                  refin = False,
+                                  refot = False)
+
+    crc16_ccitt_param = CRCParam(name = 'CRC-16/CCITT-TRUE',
                                  order = 16,
                                  poly = 0x1021,
-                                 init = 0xffff,
+                                 init = 0x0000,
                                  xorot = 0x0000,
-                                 refin = False,
-                                 refot = False)
+                                 refin = True,
+                                 refot = True)
+
+    crc16_xmodem_param = CRCParam(name = 'CRC-16/XMODEM',
+                                  order = 16,
+                                  poly = 0x1021,
+                                  init = 0x0000,
+                                  xorot = 0x0000,
+                                  refin = False,
+                                  refot = False)
+
+    crc16_ccitt_false_param = CRCParam(name = 'CRC-16/CCITT-FALSE',
+                                       order = 16,
+                                       poly = 0x1021,
+                                       init = 0xffff,
+                                       xorot = 0x0000,
+                                       refin = False,
+                                       refot = False)
+
+    crc16_ccitt_false_lsb_param = CRCParam(name = 'CRC-16/CCITT-FALSE',
+                                           order = 16,
+                                           poly = 0x1021,
+                                           init = 0xffff,
+                                           xorot = 0x0000,
+                                           refin = True,
+                                           refot = False)
 
     crc32_param = CRCParam(name = 'CRC-32',
                            order = 32,
@@ -220,13 +260,17 @@ if __name__ == '__main__':
         return struct.unpack("<I", struct.pack(">I", i))[0]
 
 
+    # https://reveng.sourceforge.io/crc-catalogue/16.htm
     # http://reveng.sourceforge.net/crc-catalogue/17plus.htm
-    # http://stackoverflow.com/questions/1918090/crc-test-vectors-for-crc16-ccitt
     vector = [ord(c) for c in '123456789']
-    test(CRC.crc16_ccitt_param, vector, 0x29b1)
-    test(CRC.crc32_param,       vector, 0xcbf43926)
-    test(CRC.crc32_bzip2_param, vector, 0xfc891918)
-    test(CRC.crc32c_param,      vector, 0xe3069283)
+    test(CRC.crc16_param,             vector, 0xbb3d)
+    test(CRC.crc16_bypass_param,      vector, 0xfee8)
+    test(CRC.crc16_ccitt_param,       vector, 0x2189)
+    test(CRC.crc16_xmodem_param,      vector, 0x31c3)
+    test(CRC.crc16_ccitt_false_param, vector, 0x29b1)
+    test(CRC.crc32_param,             vector, 0xcbf43926)
+    test(CRC.crc32_bzip2_param,       vector, 0xfc891918)
+    test(CRC.crc32c_param,            vector, 0xe3069283)
 
 
     # Test vectors for CRC-32C from RFC3270:
