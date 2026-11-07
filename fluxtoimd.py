@@ -16,7 +16,7 @@
 #    <http://www.gnu.org/licenses/>.
 
 import argparse
-import re
+import regex as re
 from collections import OrderedDict
 
 from scp import SCP      # SuperCardPro image format
@@ -111,7 +111,7 @@ def dump_track(modulation,
     for id_pos in id_address_mark_locs:
         if debug_dump:
             print('id address mark at channel bit %d' % id_pos)
-        id_field = modulation.decode(bits[id_pos: id_pos + len(modulation.id_address_mark) + modulation.byte_length * (modulation.id_field_length + 2)]) 
+        id_field = modulation.decode(bits[id_pos: id_pos + len(modulation.id_address_mark) + modulation.byte_length * (modulation.id_field_length + 2)])
         current_crc.reset()
         if (modulation.crc_includes_address_mark):
             current_crc.comp(id_field)
@@ -156,20 +156,28 @@ def dump_track(modulation,
         sectors[id_sector] = [False, None, True]
 
         deleted = False
-        data_pos = bits.find(modulation.data_address_mark, id_pos + len(modulation.data_address_mark) + modulation.byte_length * (modulation.id_field_length + 2))
-        if (modulation.id_to_data_half_bits - 50) <= (data_pos - id_pos) <= (modulation.id_to_data_half_bits + 50):
+        found = False
+
+        data_pos = id_pos + len(modulation.id_address_mark) + modulation.byte_length * (modulation.id_field_length + 2) - 1
+        while not found and data_pos - id_pos <= (modulation.id_to_data_half_bits + 50):
+            data_pos = bits.find(modulation.data_address_mark, data_pos+1)
             if debug_dump:
-                print('  data address mark at channel bit offset %d' % (data_pos - id_pos))
-        elif hasattr(modulation, 'deleted_data_address_mark'):
-            data_pos = bits.find(modulation.deleted_data_address_mark, id_pos + len(modulation.data_address_mark) + 96)
+                print('checking data mark at offset {}'.format(data_pos - id_pos))
             if (modulation.id_to_data_half_bits - 50) <= (data_pos - id_pos) <= (modulation.id_to_data_half_bits + 50):
-                print('  deleted data address mark at channel bit offset %d' % (data_pos - id_pos))
-                deleted = True
-            else:
-                print('*** ID field without data field ***')
-                hex_dump(id_field)
-                continue
-        else:
+                if debug_dump:
+                    print('  data address mark at channel bit offset %d' % (data_pos - id_pos))
+                found = True
+
+        if not found and hasattr(modulation, 'deleted_data_address_mark'):
+            data_pos = id_pos + len(modulation.id_address_mark) + modulation.byte_length * (modulation.id_field_length + 2) - 1
+            while not found and data_pos - id_pos <= (modulation.id_to_data_half_bits + 50):
+                data_pos = bits.find(modulation.deleted_data_address_mark, data_pos + 1)
+                if (modulation.id_to_data_half_bits - 50) <= (data_pos - id_pos) <= (modulation.id_to_data_half_bits + 50):
+                    print('  deleted data address mark at channel bit offset %d' % (data_pos - id_pos))
+                    found = True
+                    deleted = True
+
+        if not found:
             print('*** ID field without data field ***')
             hex_dump(id_field)
             continue
@@ -181,14 +189,14 @@ def dump_track(modulation,
         else:
             current_crc.comp(data_field[modulation.address_mark_length:])
         if current_crc.get() == 0:
-            sectors [id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], False)
+            sectors[id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], False)
         else:
             print("*** bad data field CRC track %d side %d sector %d" % (track, side, id_sector))
             if verbose:
                 hex_dump(data_field)
             # Only update sector if bad to prevent overwriting good with bad
             if sectors[id_sector][2]:
-                sectors [id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], True)
+                sectors[id_sector] = (deleted, data_field[modulation.address_mark_length:bc+modulation.address_mark_length], True)
 
     return sectors
 
