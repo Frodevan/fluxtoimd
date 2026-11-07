@@ -203,6 +203,7 @@ parser.add_argument('-n', '--sectors',     type=int, default = -1, help='number 
 
 parser.add_argument('-f', '--frequency',  type=float, help = 'sample rate in MHz', default=25.0)
 parser.add_argument('-b', '--bit-rate',   type=float, help = 'bit rate in Kbps')
+parser.add_argument('-fs', '--firstsector', type=int, default = -1, help='first sector in cylinder')
 parser.add_argument('--index',            action = 'store_true', help = 'require tracks to have index address marks')
 parser.add_argument('-v', '--verbose',    action = 'store_true')
 args = parser.parse_args()
@@ -232,7 +233,9 @@ crc.make_table(8)
 bit_rate = args.bit_rate
 hbr = bit_rate * 2000   # half-bit rate in Hz
 hbc = 1/hbr                  # half-bit cycle in s
-first_sector = args.modulation.default_first_sector
+first_sector = args.firstsector
+if first_sector == -1:
+    first_sector = args.modulation.default_first_sector
 sectors_per_track = args.modulation.default_sectors_per_track
 
 if args.sectors > 0:
