@@ -82,20 +82,13 @@ class FM(Modulation):
 # MFM is IBM System/34 double-density format
 # standards: ECMA 69, ISO 7065, ANSI X3.121
 
-class MFM(Modulation):
+class MFM(FM):
 
     default_bit_rate_kbps = 500
-    default_first_sector = 1
-    default_sectors_per_track = 26
     expected_sector_sizes = [128, 256, 512, 1024, 2048, 4096, 8192]  # 128 is uncommon
     default_bytes_per_sector = 256
-    lsb_first = False
     imagedisk_mode = 0x03
 
-    id_field_length = 4
-    byte_length = 16
-    crc_params = CRC.crc16_ccitt_false_param
-    crc_includes_address_mark = True
     address_mark_length = 4
 
     id_to_data_half_bits = 700
@@ -145,21 +138,13 @@ class TandbergMFM(MFM):
 #   Intelled Double Density Diskette Operating System Hardware Reference Manual,
 #      Intel 1977, Order Number 98-422A
 
-class IntelM2FM(Modulation):
+class IntelM2FM(MFM):
 
-    default_bit_rate_kbps = 500
-    default_first_sector = 1
     default_sectors_per_track = 52
     expected_sector_sizes = [128]
     default_bytes_per_sector = 128
-    lsb_first = False
-    imagedisk_mode = 0x03  # ImageDisk doesn't (yet?) have a defined mode for
-                           # Intel M2FM
 
-    id_field_length = 4
-    byte_length = 16
     crc_params = CRC.crc16_xmodem_param
-    crc_includes_address_mark = True
     address_mark_length = 1
 
     id_to_data_half_bits = 600
@@ -197,19 +182,14 @@ class IntelM2FM(Modulation):
 # 7902: double-sided, 77 track, M2FM or IBM 3740 FM formats
 # 9895: double-siced, 77 track, M2FM or IBM 3740 FM formats
 
-class HPM2FM(Modulation):
+class HPM2FM(MFM):
 
-    default_bit_rate_kbps = 500
     default_first_sector = 0
     default_sectors_per_track = 30
     expected_sector_sizes = [256]
-    default_bytes_per_sector = 256
     lsb_first = True
-    imagedisk_mode = 0x03  # ImageDisk doesn't (yet?) have a defined mode for
-                           # Intel M2FM
 
     id_field_length = 2
-    byte_length = 16
     crc_params = CRC.crc16_ccitt_false_lsb_param
     crc_includes_address_mark = False
     address_mark_length = 1
