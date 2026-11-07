@@ -250,6 +250,36 @@ class MetropolisGCR(Modulation):
             bytes.append(nibbles[i+1] + (nibbles[i]<<4))
         return bytes
 
+class ZilogMCZ(Modulation):
+    default_bit_rate_kbps = 250
+    default_first_sector = 0
+    default_sectors_per_track = 32
+    default_bytes_per_sector = 136
+    lsb_first = False
+    imagedisk_mode = 0x00
+
+    byte_length = 16
+    crc_params = CRC.crc16_bypass_param
+
+    preamble_length = 8
+    preamble_overshoot = 6
+
+    # Would prefer to use a more general @staticmethod encode, but then can't call in
+    # class initialization
+    def encode_mark(length):
+        bits = ''
+        for b in range(length):
+            for i in range(8):
+                bits += ('%d%d' % (1, 0))
+        bits += ('%d%d' % (1, 1))
+        bits += ('%d%d' % (1, 0))
+        bits += ('%d%d' % (1, 0))
+        return bits
+
+    preamble_mark           = encode_mark(preamble_length)
+
+    del encode_mark
+
 
 if __name__ == '__main__':
     for modulation in (FM, MFM, IntelM2FM, HPM2FM):

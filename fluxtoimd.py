@@ -53,26 +53,14 @@ def hex_dump(b, prefix = ''):
         print()
 
 
-def dump_track(modulation,
+def prep_track(modulation,
                image,
                track,
-               side,  # 0 or 1
-               sectors_per_track = None,
-               require_index_mark = False,
-               verbose = False):
-
+               side):
     if track == 0 and side == 0:
-        current_crc = crc_00
         current_hbc = hbc_00
     else:
-        current_crc = crc
         current_hbc = hbc
-
-
-    if sectors_per_track is None:
-        sectors_per_track = modulation.default_sectors_per_track
-
-    sectors = OrderedDict()
 
     block = image.blocks[(track, side, 1)]
 
@@ -97,6 +85,85 @@ def dump_track(modulation,
         for i in range(16):
             print(i)
             hex_dump(modulation.decode(bits[i:]))
+
+    return bits
+
+
+def dump_track(modulation,
+               image,
+               track,
+               side,  # 0 or 1
+               require_index_mark = False,
+               verbose = False):
+
+    bits = prep_track(modulation, image, track, side)
+
+    if 'ZilogMCZ' in str(type(modulation)):
+        return dump_track_hard_zilog(modulation, bits, track, verbose)
+    return dump_track_soft(modulation, bits, track, side, require_index_mark, verbose)
+
+
+def dump_track_hard_zilog(modulation, bits, track, verbose = False):
+    current_crc = crc
+    sectors = OrderedDict()
+
+    preamble_mark_locs = [m.start() for m in re.finditer(modulation.preamble_mark, bits, overlapped = True)]
+
+    for preamble_mark in preamble_mark_locs:
+        block = modulation.decode(bits[preamble_mark:preamble_mark + len(modulation.preamble_mark) - modulation.preamble_overshoot + modulation.byte_length * modulation.default_bytes_per_sector])
+        sector = block[modulation.preamble_length:modulation.preamble_length + modulation.default_bytes_per_sector]
+
+        current_crc.reset()
+        current_crc.comp(sector)
+
+        sector_nr = sector[0]&0x7f
+        track_nr = sector[1]
+
+        if track_nr != track or not (modulation.default_first_sector <= sector_nr < modulation.default_first_sector + modulation.default_sectors_per_track):
+            if verbose:
+                print("*** bad sector id track %d: sector nr %d track nr %d" % (track, sector_nr, track_nr))
+                hex_dump(block)
+            continue
+
+        if (sector_nr in sectors) and (sectors[sector_nr][1] is not None) and not sectors[sector_nr][2]:
+            if current_crc.get() == 0:
+                if verbose:
+                    print("*** good data CRC track %d sector %d" % (track, sector_nr))
+                for i in range(modulation.default_bytes_per_sector):
+                    if sectors[sector_nr][1][i] != sector[i]:
+                        print("*** Two mismatching good sectors track %d sector %d" % (track, sector_nr))
+                        sectors[sector_nr][2] = True
+                        break
+            elif verbose:
+                print("*** redundant bad data CRC track %d sector %d" % (track, sector_nr))
+            continue  # already have this one and it was a good read
+
+
+        if current_crc.get() == 0:
+            if verbose:
+                print("*** good data CRC track %d sector %d" % (track, sector_nr))
+            sectors[sector_nr] = (False, sector, False)
+        else:
+            if verbose:
+                print("*** bad data CRC track %d sector %d" % (track, sector_nr))
+                hex_dump(sector)
+            sectors[sector_nr] = [False, sector, True]
+    return sectors
+
+
+def dump_track_soft(modulation,
+                    bits,
+                    track,
+                    side,  # 0 or 1
+                    require_index_mark = False,
+                    verbose = False):
+
+    if track == 0 and side == 0:
+        current_crc = crc_00
+    else:
+        current_crc = crc
+
+    sectors = OrderedDict()
 
     if require_index_mark and index_address_mark in modulation:
         index_address_mark_locs = [m.start() for m in re.finditer(modulation.index_address_mark, bits)]
@@ -216,6 +283,7 @@ parser_modulation.add_argument('--intelm2fm', action = 'store_const', const = In
 parser_modulation.add_argument('--hpm2fm', action = 'store_const', const = HPM2FM, dest = 'modulation', help = 'M2FM modulation, HP 7902/9885/9895 double density')
 parser_modulation.add_argument('--tandbergmfm',  action = 'store_const', const = TandbergMFM,  dest = 'modulation', help = 'MFM modulation, Tandberg double density')
 parser_modulation.add_argument('--gcr',  action = 'store_const', const = MetropolisGCR,  dest = 'modulation', help = 'GCR modulation, Metropolis FDC')
+parser_modulation.add_argument('--zilog',  action = 'store_const', const = ZilogMCZ,  dest = 'modulation', help = 'FM modulation, hard-sectored, Zilog MCZ-1')
 
 parser.set_defaults(modulation = FM)
 

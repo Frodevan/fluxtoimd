@@ -56,7 +56,8 @@ class ImageDisk:
                           512: 2,
                           1024: 3,
                           2048: 4,
-                          4096: 5 }
+                          4096: 5,
+                          136: -1} # Zilog MCZ-1
 
 
     def write_sector(self, mode, cylinder, head, sector, data, deleted = False, replace_ok = False, bad = False):
